@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
+  <title>WFC Livestock Intake</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2E4053">
-  
   <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
-  
   <style>
     body { font-family: sans-serif; padding:12px; max-width:600px; margin:auto; }
     img.logo { display:block; margin:0 auto 16px; max-width:180px; }
@@ -16,21 +15,13 @@
     .nested { margin-left:16px; }
     button.inline { display:inline-block; margin:4px; }
     .submit-btn {
-      display: block;
-      margin: 24px auto;
-      font-size: 18px;
-      padding: 10px 20px;
-      border-radius: 12px;
-      background: #2E4053;
-      color: white;
-      border: none;
-      cursor: pointer;
+      display: block; margin: 24px auto; font-size: 18px; padding: 10px 20px;
+      border-radius: 12px; background: #2E4053; color: white; border: none; cursor: pointer;
     }
   </style>
 </head>
 <body>
   <img src="logo.png" alt="WFC Livestock" class="logo">
-
   <form id="intakeForm">
     <div class="section">
       <label>Tag ID<input name="tagId" required></label>
@@ -59,7 +50,6 @@
         Weight (lbs)<input name="weight" type="number" min="0">
       </label>
     </div>
-
     <div class="section">
       <label><input type="checkbox" id="vaxToggle"> Vaccination</label>
       <div id="vaxRepeater" class="nested" style="display:none;">
@@ -81,7 +71,6 @@
         <button type="button" class="removeVax inline">Remove</button>
       </div>
     </template>
-
     <div class="section">
       <label><input type="checkbox" id="pourOnCheck" name="doPourOn"> Pour-On</label>
       <div id="pourOnFields" class="nested" style="display:none;">
@@ -95,7 +84,6 @@
         <label>Dose (mL)<input name="pourOnDose" id="pourOnDose" type="number" step="0.1"></label>
       </div>
     </div>
-
     <div class="section" id="castrationSection" style="display:none;">
       <label>Perform castration?</label>
       <label class="nested"><input type="radio" name="castrationYesNo" value="No" checked> No</label>
@@ -107,7 +95,6 @@
         </select>
       </div>
     </div>
-
     <div class="section">
       <label><input type="checkbox" id="brandCheck" name="doBranding"> Branding</label>
       <div id="brandingField" class="nested" style="display:none;">
@@ -122,7 +109,6 @@
         </select>
       </div>
     </div>
-
     <div class="section">
       <label>Administered By
         <select name="handler" id="handlerSelect">
@@ -140,16 +126,16 @@
         <input name="otherHandler" placeholder="Enter name">
       </div>
     </div>
-
-    <button type="submit" class="submit-btn">
-      Finish
-    </button>
+    <button type="submit" class="submit-btn">Finish</button>
   </form>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAPwI4abewLjoIgWP-amfPx5vT2gh2NjjQ8dCoHCgM8W_lNXpRl5utNjuWGiYXhmW-pg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDm97ipI54mE0vrq7UFapUOizRbs6M5ntjEYUHub0FRmAfdM6k9aTTjGhhDvPj0bg6hw/exec";
 
-    // Element Refs
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.warn);
+    }
+    
     const form = document.getElementById('intakeForm');
     const typeSel = document.getElementById('animalType');
     const subField = document.getElementById('subtypeField');
@@ -172,7 +158,6 @@
     const handlerSel = document.getElementById('handlerSelect');
     const otherHnd = document.getElementById('otherHandlerField');
 
-    // Core Logic Functions
     function updateCalfUI() {
       const isCalf = typeSel.value === 'Calf';
       const isBull = isCalf && subtypeSelect.value === 'Bull Calf';
@@ -241,7 +226,6 @@
         updateCalfUI();
     }
 
-    // Event Listeners
     typeSel.addEventListener('change', updateCalfUI);
     subtypeSelect.addEventListener('change', updateCalfUI);
     weightInput.addEventListener('input', calcPourDose);
@@ -276,7 +260,6 @@
         otherHnd.style.display = handlerSel.value === 'Other' ? 'block' : 'none';
     });
 
-    // Form Submission Handler
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const submitBtn = form.querySelector('.submit-btn');
@@ -326,30 +309,45 @@
         castration: didCast ? { method: d.castrationMethod } : null,
         branding: d.doBranding ? { location: d.brandingLocation } : null
       };
-      
-      try {
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-          },
-          body: JSON.stringify({
-            action: 'submitIntake',
-            payload: payload
-          }),
-        });
-        
-        alert(`✔ Success! Data submitted for Tag ${payload.tagId}.`);
-        resetFormUI();
 
-      } catch (err) {
-        alert(`❌ Error: ${err.message}`);
-      } finally {
-        submitBtn.disabled = false;
+      if (!navigator.onLine && 'serviceWorker' in navigator && 'SyncManager' in window) {
+        try {
+          const key = `intake-${new Date().toISOString()}`;
+          await idbKeyval.set(key, payload);
+          const swRegistration = await navigator.serviceWorker.ready;
+          await swRegistration.sync.register('sync-intake');
+          alert('💾 Offline: Data saved and will sync automatically when online.');
+          resetFormUI();
+        } catch (error) {
+          alert('❌ Offline Sync Error. Please try again.');
+        } finally {
+          submitBtn.disabled = false;
+        }
+      } else {
+        try {
+          const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'submitIntake', payload: payload })
+          });
+          const result = await response.json();
+          if (result.status === 'success') {
+            alert(`✔ Success! Saved Tag ${result.record}`);
+            resetFormUI();
+          } else {
+            throw new Error(result.message || 'Unknown server error');
+          }
+        } catch (err) {
+          alert(`❌ Error: ${err.message}`);
+        } finally {
+          submitBtn.disabled = false;
+        }
       }
     });
     
+    document.addEventListener('DOMContentLoaded', resetFormUI);
+  </script>
+</body>
+</html>
     document.addEventListener('DOMContentLoaded', resetFormUI);
   </script>
 </body>
