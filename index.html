@@ -133,7 +133,8 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAr2cyWKxxABAY3ybuPdXpS5hXFYWCwV5WknBAdpjJbsr08lwbe5yD_IFWKbn8TQW_3g/exec";
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(console.warn);
+      navigator.serviceWorker.register('./WFC-Livestock-Management-System/sw.js');
+;
     }
     
     const form = document.getElementById('intakeForm');
