@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2E4053">
+  
+  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+  
+  <style>
+    body { font-family: sans-serif; padding:12px; max-width:600px; margin:auto; }
+    img.logo { display:block; margin:0 auto 16px; max-width:180px; }
+    .section { margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:12px; }
+    label { display:block; margin-bottom:8px; }
+    input, select { width:100%; padding:8px; margin-top:4px; box-sizing: border-box; }
+    .nested { margin-left:16px; }
+    button.inline { display:inline-block; margin:4px; }
+    .submit-btn {
+      display: block;
+      margin: 24px auto;
+      font-size: 18px;
+      padding: 10px 20px;
+      border-radius: 12px;
+      background: #2E4053;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <img
+    src="[PASTE THE BASE64 CODE FOR YOUR LOGO HERE]"
+    alt="WFC Livestock"
+    class="logo">
+
+  <form id="intakeForm">
+    <div class="section">
+      <label>Tag ID<input name="tagId" required></label>
+      <label>Animal Type
+        <select name="animalType" id="animalType" required>
+          <option>Cow</option>
+          <option>Breeding Bull</option>
+          <option>Calf</option>
+        </select>
+      </label>
+      <label id="subtypeField" class="nested" style="display:none;">
+        Calf Subtype
+        <select name="subtype">
+          <option>Heifer</option>
+          <option>Bull Calf</option>
+        </select>
+      </label>
+      <label>Pasture
+        <select name="pasture">
+          <option>Avalon</option>
+          <option selected>Barn</option>
+          <option>Flood Control</option>
+        </select>
+      </label>
+      <label id="weightField" class="nested" style="display:none;">
+        Weight (lbs)<input name="weight" type="number" min="0">
+      </label>
+    </div>
+
+    <div class="section">
+      <label><input type="checkbox" id="vaxToggle"> Vaccination</label>
+      <div id="vaxRepeater" class="nested" style="display:none;">
+        <button type="button" id="addVaxBtn" class="inline">+ Add Vaccine</button>
+      </div>
+    </div>
+    <template id="vaxRowTpl">
+      <div class="nested vaxRow" style="margin-top:8px;">
+        <select name="vaccineType" class="vaccineType">
+          <option>Vira Shield 6+L5</option>
+          <option>Covexin 8</option>
+        </select>
+        <input name="vaccineDose" class="vaccineDose" placeholder="Dose (e.g. 2 mL IM)">
+        <input name="vaccineSite" class="vaccineSite" value="Right Neck" placeholder="Site">
+        <label><input type="checkbox" class="noBooster"> No booster</label>
+        <label class="boosterLabel">Booster
+          <input name="vaccineBooster" class="vaccineBooster" type="date">
+        </label>
+        <button type="button" class="removeVax inline">Remove</button>
+      </div>
+    </template>
+
+    <div class="section">
+      <label><input type="checkbox" id="pourOnCheck" name="doPourOn"> Pour-On</label>
+      <div id="pourOnFields" class="nested" style="display:none;">
+        <label>Product
+          <select name="pourOnProduct" id="pourOnProduct">
+            <option>Clean-Up II</option>
+            <option>Ultra Boss</option>
+            <option>Ivermectin Pour-On</option>
+          </select>
+        </label>
+        <label>Dose (mL)<input name="pourOnDose" id="pourOnDose" type="number" step="0.1"></label>
+      </div>
+    </div>
+
+    <div class="section" id="castrationSection" style="display:none;">
+      <label>Perform castration?</label>
+      <label class="nested"><input type="radio" name="castrationYesNo" value="No" checked> No</label>
+      <label class="nested"><input type="radio" name="castrationYesNo" value="Yes"> Yes</label>
+      <div id="castrationMethods" class="nested" style="display:none;">
+        <select name="castrationMethod">
+          <option>Band</option>
+          <option>Knife</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <label><input type="checkbox" id="brandCheck" name="doBranding"> Branding</label>
+      <div id="brandingField" class="nested" style="display:none;">
+        <select name="brandingLocation">
+          <option>Right Hip</option>
+          <option>Left Neck</option>
+          <option>Left Shoulder</option>
+          <option>Left Rib</option>
+          <option>Left Hip</option>
+          <option>Right Shoulder</option>
+          <option>Right Rib</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>Administered By
+        <select name="handler" id="handlerSelect">
+          <option>Jason Williams</option>
+          <option>Tristan Williams</option>
+          <option>Seth Williams</option>
+          <option>Braden Crow</option>
+          <option>Rowdy Palmer</option>
+          <option>Judah Williams</option>
+          <option>Grady Palmer</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+      <div id="otherHandlerField" class="nested" style="display:none;">
+        <input name="otherHandler" placeholder="Enter name">
+      </div>
+    </div>
+
+    <button type="submit" class="submit-btn">
+      Finish
+    </button>
+  </form>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAPwI4abewLjoIgWP-amfPx5vT2gh2NjjQ8dCoHCgM8W_lNXpRl5utNjuWGiYXhmW-pg/exec";
+
+    // Element Refs
+    const form = document.getElementById('intakeForm');
+    const typeSel = document.getElementById('animalType');
+    const subField = document.getElementById('subtypeField');
+    const subtypeSelect = subField.querySelector('select[name="subtype"]');
+    const wtField = document.getElementById('weightField');
+    const weightInput = wtField.querySelector('input[name="weight"]');
+    const vaxToggle = document.getElementById('vaxToggle');
+    const vaxRep = document.getElementById('vaxRepeater');
+    const addVaxBtn = document.getElementById('addVaxBtn');
+    const vaxTpl = document.getElementById('vaxRowTpl');
+    const pourChk = document.getElementById('pourOnCheck');
+    const pourFld = document.getElementById('pourOnFields');
+    const pourProdSel = document.getElementById('pourOnProduct');
+    const pourDose = document.getElementById('pourOnDose');
+    const casSec = document.getElementById('castrationSection');
+    const casYesNo = document.querySelectorAll('input[name="castrationYesNo"]');
+    const casMeth = document.getElementById('castrationMethods');
+    const brandChk = document.getElementById('brandCheck');
+    const brandFld = document.getElementById('brandingField');
+    const handlerSel = document.getElementById('handlerSelect');
+    const otherHnd = document.getElementById('otherHandlerField');
+
+    // Core Logic Functions
+    function updateCalfUI() {
+      const isCalf = typeSel.value === 'Calf';
+      const isBull = isCalf && subtypeSelect.value === 'Bull Calf';
+      subField.style.display = isCalf ? 'block' : 'none';
+      wtField.style.display = isCalf ? 'block' : 'none';
+      casSec.style.display = isBull ? 'block' : 'none';
+      if (!isBull) {
+        document.querySelector('input[name="castrationYesNo"][value="No"]').checked = true;
+        casMeth.style.display = 'none';
+      }
+      calcPourDose();
+    }
+    
+    function calcPourDose() {
+      if (!pourChk.checked) {
+        pourDose.value = '';
+        return;
+      }
+      if (typeSel.value === 'Calf') {
+        const w = parseFloat(weightInput.value) || 0;
+        if (w >= 1000) pourDose.value = 30;
+        else if (w >= 800) pourDose.value = 24;
+        else if (w >= 600) pourDose.value = 18;
+        else if (w >= 500) pourDose.value = 15;
+        else if (w >= 400) pourDose.value = 12;
+        else if (w >= 300) pourDose.value = 9;
+        else pourDose.value = 0;
+      } else {
+        pourDose.value = 30;
+      }
+    }
+
+    function addVaccineRow() {
+      const clone = vaxTpl.content.cloneNode(true);
+      const row = clone.querySelector('.vaxRow');
+      const vaccineTypeSelect = row.querySelector('.vaccineType');
+      const vaccineDoseInput = row.querySelector('.vaccineDose');
+      const noBoosterCheck = row.querySelector('.noBooster');
+
+      function setDose() {
+        vaccineDoseInput.value = (vaccineTypeSelect.value === 'Vira Shield 6+L5')
+          ? '2 mL IM'
+          : '5 mL SQ';
+      }
+      vaccineTypeSelect.addEventListener('change', setDose);
+      setDose();
+
+      row.querySelector('.vaccineBooster').value =
+        new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      
+      noBoosterCheck.addEventListener('change', (e) => {
+        row.querySelector('.boosterLabel').style.display = e.target.checked ? 'none' : 'block';
+      });
+      
+      row.querySelector('.removeVax').addEventListener('click', () => row.remove());
+      vaxRep.appendChild(clone);
+    }
+    
+    function resetFormUI() {
+        form.reset();
+        vaxRep.style.display = 'none';
+        pourFld.style.display = 'none';
+        brandFld.style.display = 'none';
+        otherHnd.style.display = 'none';
+        vaxRep.querySelectorAll('.vaxRow').forEach(r => r.remove());
+        updateCalfUI();
+    }
+
+    // Event Listeners
+    typeSel.addEventListener('change', updateCalfUI);
+    subtypeSelect.addEventListener('change', updateCalfUI);
+    weightInput.addEventListener('input', calcPourDose);
+    pourProdSel.addEventListener('change', calcPourDose);
+    
+    vaxToggle.addEventListener('change', () => {
+      const isChecked = vaxToggle.checked;
+      vaxRep.style.display = isChecked ? 'block' : 'none';
+      if (!isChecked) {
+        vaxRep.querySelectorAll('.vaxRow').forEach(r => r.remove());
+      }
+    });
+
+    addVaxBtn.addEventListener('click', addVaccineRow);
+
+    pourChk.addEventListener('change', () => {
+      pourFld.style.display = pourChk.checked ? 'block' : 'none';
+      calcPourDose();
+    });
+
+    casYesNo.forEach(rb => rb.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            casMeth.style.display = e.target.value === 'Yes' ? 'block' : 'none';
+        }
+    }));
+    
+    brandChk.addEventListener('change', () => {
+        brandFld.style.display = brandChk.checked ? 'block' : 'none';
+    });
+
+    handlerSel.addEventListener('change', () => {
+        otherHnd.style.display = handlerSel.value === 'Other' ? 'block' : 'none';
+    });
+
+    // Form Submission Handler
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = form.querySelector('.submit-btn');
+      submitBtn.disabled = true;
+
+      const formData = new FormData(form);
+      const d = Object.fromEntries(formData.entries());
+
+      if (d.handler === 'Other' && !d.otherHandler.trim()) {
+        alert('Please enter a name for the "Other" handler.');
+        submitBtn.disabled = false;
+        return;
+      }
+      
+      if (vaxToggle.checked && vaxRep.querySelectorAll('.vaxRow').length === 0) {
+        alert("Please add at least one vaccine row or uncheck the 'Vaccination' box.");
+        submitBtn.disabled = false;
+        return;
+      }
+      
+      if (typeSel.value === 'Calf' && pourChk.checked && (!pourDose.value || parseFloat(pourDose.value) === 0)) {
+        if (!confirm("Warning: The pour-on dose for this calf is 0. Do you want to continue?")) {
+          submitBtn.disabled = false;
+          return;
+        }
+      }
+
+      const didCast = d.castrationYesNo === 'Yes';
+      const payload = {
+        tagId: d.tagId,
+        animalType: didCast ? 'Steer' : d.animalType,
+        subtype: (d.animalType === 'Calf' && !didCast) ? d.subtype : '',
+        pasture: d.pasture,
+        weight: d.weight,
+        handler: d.handler === 'Other' ? d.otherHandler.trim() : d.handler,
+        vaccine: vaxToggle.checked ? {
+          products: Array.from(vaxRep.querySelectorAll('.vaxRow')).map(r => ({
+            name: r.querySelector('.vaccineType').value,
+            dose: r.querySelector('.vaccineDose').value,
+            site: r.querySelector('.vaccineSite').value,
+            ...(!r.querySelector('.noBooster').checked ?
+              { boosterDate: r.querySelector('.vaccineBooster').value } :
+              {})
+          }))
+        } : null,
+        pourOn: d.doPourOn ? { product: d.pourOnProduct, dose: d.pourOnDose } : null,
+        castration: didCast ? { method: d.castrationMethod } : null,
+        branding: d.doBranding ? { location: d.brandingLocation } : null
+      };
+      
+      try {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({
+            action: 'submitIntake',
+            payload: payload
+          }),
+        });
+        
+        alert(`✔ Success! Data submitted for Tag ${payload.tagId}.`);
+        resetFormUI();
+
+      } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+    
+    document.addEventListener('DOMContentLoaded', resetFormUI);
+  </script>
+</body>
+</html>
