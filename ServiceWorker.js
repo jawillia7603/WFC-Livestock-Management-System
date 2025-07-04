@@ -1,4 +1,4 @@
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDm97ipI54mE0vrq7UFapUOizRbs6M5ntjEYUHub0FRmAfdM6k9aTTjGhhDvPj0bg6hw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbysF5s7UZjWmrx4rpypqguzUz9-YQ82OQU3-aBH09kMAgQdDUabf6sbh5eqIC9iQl8hPQ/exec";
 const CACHE_NAME = 'wfc-github-v1';
 const URLS_TO_CACHE = ['/', '/index.html', '/sw.js', '/manifest.json', '/logo.png'];
 
